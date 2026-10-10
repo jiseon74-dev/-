@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>국소배기장치 필요환기량 계산기</title>
+<style>
+:root{--navy:#173f70;--blue:#1677e8;--pale:#eef6ff;--line:#cbdcf0;--text:#172b43;--muted:#5c7088}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Malgun Gothic","Noto Sans KR",sans-serif;background:#f3f7fc;color:var(--text)}
+header{background:linear-gradient(120deg,#173f70,#2365a7);color:white;padding:27px 18px}.wrap{max-width:780px;margin:auto}
+h1{margin:0 0 8px;font-size:clamp(1.4rem,4vw,2rem)}header p{margin:0;opacity:.93;line-height:1.5}
+main{max-width:780px;margin:22px auto;padding:0 14px 30px}.card{background:white;border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 5px 18px #173f700b}
+h2{margin:0 0 14px;font-size:1.12rem;color:var(--navy)}
+.choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+button,select,input{font:inherit}.choice{padding:14px 8px;min-height:68px;border:1px solid var(--line);border-radius:12px;background:white;color:var(--text);cursor:pointer}
+.choice.active,.subtype.active,.shape-btn.active{border:2px solid var(--blue);background:var(--pale);color:#0755b3;font-weight:700}
+.subtypes,.shape-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.subtype,.shape-btn{padding:11px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer}
+.formula{background:var(--pale);border:1px solid #d4e7ff;border-radius:12px;padding:14px;line-height:1.7;margin-bottom:16px}
+.formula strong{display:block;font-size:1.25rem;color:#0b4e9c}
+.field{display:grid;grid-template-columns:1fr minmax(130px,220px);align-items:center;gap:12px;margin:13px 0}
+label{font-weight:600}.input-wrap{display:flex;align-items:center;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+input,select{width:100%;min-width:0;border:0;outline:none;padding:11px;background:white;color:var(--text)}.unit{padding:11px 10px;background:#f1f5fa;color:var(--muted);white-space:nowrap;font-size:.9rem}
+.actions{display:flex;gap:10px;margin-top:18px}.primary,.secondary{border:0;border-radius:10px;padding:12px 16px;cursor:pointer;font-weight:700}
+.primary{background:var(--blue);color:white;flex:1}.secondary{background:#eef3f9;color:var(--navy)}
+.result{display:none;border:1px solid #a8dfc5;background:#f1fff7;border-radius:12px;padding:17px;margin-top:18px}.result.show{display:block}
+.result-label{color:#23724e;font-weight:700}.big{font-size:1.7rem;font-weight:800;color:#126d48;margin:4px 0 12px;overflow-wrap:anywhere}
+.calc-line{background:white;border-radius:8px;padding:10px;color:#43556b;line-height:1.7;overflow-wrap:anywhere}
+.notice{color:var(--muted);font-size:.9rem;line-height:1.65}.pending{display:none;background:#fff8e8;border:1px solid #f2d69b;padding:12px;border-radius:10px;margin-top:12px;color:#755016;line-height:1.5}
+.pending.show{display:block}footer{text-align:center;font-size:.82rem;color:var(--muted);padding:10px 0;line-height:1.6}
+@media(max-width:520px){.card{padding:16px}.choices{grid-template-columns:1fr}.choice{min-height:54px;text-align:left;padding-left:16px}.field{grid-template-columns:1fr;gap:6px}.subtypes,.shape-options{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>국소배기장치 필요환기량 계산기</h1><p>모든 길이는 cm로 입력하고, 결과는 m³/min으로 확인하세요.</p></div></header>
+<main>
+<section class="card">
+<h2>1. 후드 종류 선택</h2>
+<div class="choices">
+<button class="choice active" data-type="booth" type="button">▣ 부스식(밀폐식)</button>
+<button class="choice" data-type="external" type="button">⇱ 외부식</button>
+<button class="choice" data-type="canopy" type="button">⌂ 캐노피식</button>
+</div>
+<div id="subtypeArea" hidden>
+<h2 style="margin-top:18px">외부식 세부 종류</h2>
+<div class="subtypes">
+<button class="subtype active" data-subtype="general" type="button">일반</button>
+<button class="subtype" data-subtype="flangedGeneral" type="button">플랜지 일반</button>
+<button class="subtype" data-subtype="slot" type="button">슬롯</button>
+<button class="subtype" data-subtype="flangedSlot" type="button">플랜지 슬롯</button>
+</div>
+</div>
+</section>
+<section class="card">
+<h2>2. 계산 입력</h2>
+<div id="formulaBox" class="formula"></div>
+<div id="inputFields"></div>
+<div id="pending" class="pending"></div>
+<div class="actions"><button id="calculate" class="primary" type="button">자동 계산 중</button><button id="reset" class="secondary" type="button">초기화</button></div>
+<div id="result" class="result" aria-live="polite">
+<div class="result-label">계산 결과</div><div>최종 필요환기량(Q)</div><div id="qResult" class="big"></div>
+<div id="calculationLine" class="calc-line"></div>
+</div>
+</section>
+<section class="card"><h2>3. 단위 및 공식 안내</h2>
+<p class="notice">모든 길이 입력값은 cm이며, 계산 시 m로 자동 변환됩니다. 후드 면적 A는 사각형(가로 × 세로) 또는 원형(지름)으로 계산할 수 있습니다. 최종 필요환기량은 m³/min으로 표시합니다. 일반 외부식 공식의 A는 후드 면적(m²)으로 해석했고, 슬롯 공식의 V는 제어속도 Vc(m/s)로 해석했습니다. 캐노피식 공식 Q=1.4×P×V×D를 적용했습니다. 실제 설계에는 적용 기준과 작업 조건을 확인하세요.</p></section>
+<footer>국소배기장치 필요환기량 계산기 · 단위 설정 업데이트</footer>
+</main>
+<script>
+const hoodButtons=[...document.querySelectorAll('.choice')],subtypeButtons=[...document.querySelectorAll('.subtype')];
+const subtypeArea=document.getElementById('subtypeArea'),formulaBox=document.getElementById('formulaBox'),inputFields=document.getElementById('inputFields'),pending=document.getElementById('pending'),result=document.getElementById('result'),calculate=document.getElementById('calculate');
+let hoodType='booth',externalSubtype='general',shape='rect';
+const definitions={
+ booth:{name:'부스식(또는 밀폐식)',formula:'Q = Vc × W × H',description:'Vc: 제어속도(m/s) · W: 개구면 가로길이(m) · H: 개구면 높이(m)',fields:[['vc','제어속도(Vc)','m/s','0.5'],['w','개구면 가로길이(W)','cm','120'],['h','개구면 높이(H)','cm','100']]},
+ general:{name:'외부식 - 일반',formula:'Q = Vc × (10X² + A)',description:'Vc: 제어속도(m/s) · X: 오염원과의 거리(m) · A: 후드 면적(m²)',fields:[['vc','제어속도(Vc)','m/s','0.5'],['x','오염원과의 거리(X)','cm','30']]},
+ flangedGeneral:{name:'외부식 - 플랜지 일반',formula:'Q = 0.75 × Vc × (10X² + A)',description:'Vc: 제어속도(m/s) · X: 오염원과의 거리(m) · A: 후드 면적(m²)',fields:[['vc','제어속도(Vc)','m/s','0.5'],['x','오염원과의 거리(X)','cm','30']]},
+ slot:{name:'외부식 - 슬롯',formula:'Q = 3.7 × L × Vc × X',description:'L: 슬롯 가로길이(m) · Vc: 제어속도(m/s, V로 해석) · X: 오염원과의 거리(m)',fields:[['l','슬롯 가로길이(L)','cm','100'],['vc','제어속도(Vc)','m/s','0.5'],['x','오염원과의 거리(X)','cm','30']]},
+ flangedSlot:{name:'외부식 - 플랜지 슬롯',formula:'Q = 2.6 × L × Vc × X',description:'L: 슬롯 가로길이(m) · Vc: 제어속도(m/s, V로 해석) · X: 오염원과의 거리(m)',fields:[['l','슬롯 가로길이(L)','cm','100'],['vc','제어속도(Vc)','m/s','0.5'],['x','오염원과의 거리(X)','cm','30']]},
+ canopy:{name:'캐노피식',formula:'Q = 1.4 × P × V × D',description:'P: 둘레(perimeter, m) · V: 속도(m/s) · D: 작업면 위 높이(m)',fields:[['p','둘레(P)','cm','300'],['v','속도(V)','m/s','0.5'],['d','작업면 위 높이(D)','cm','100']]}
+};
+function currentKey(){return hoodType==='booth'?'booth':hoodType==='external'?externalSubtype:'canopy'}
+function addField(id,label,unit,value){
+ const row=document.createElement('div');row.className='field';
+ const lab=document.createElement('label');lab.htmlFor=id;lab.textContent=label;
+ const wrap=document.createElement('div');wrap.className='input-wrap';
+ const input=document.createElement('input');input.id=id;input.type='number';input.min='0';input.step='any';input.value=value;input.inputMode='decimal';
+ const u=document.createElement('span');u.className='unit';u.textContent=unit;wrap.append(input,u);row.append(lab,wrap);inputFields.append(row);
+}
+function addAreaPicker(){
+ const heading=document.createElement('div');heading.style.margin='16px 0 8px';heading.style.fontWeight='700';heading.textContent='후드 면적(A) 모양 선택';inputFields.append(heading);
+ const options=document.createElement('div');options.className='shape-options';
+ [['rect','사각형'],['circle','원형']].forEach(([s,t])=>{const b=document.createElement('button');b.type='button';b.className='shape-btn'+(shape===s?' active':'');b.textContent=t;b.addEventListener('click',()=>{shape=s;updateUI();recalculateIfValid()});options.append(b)});
+ inputFields.append(options);
+ if(shape==='rect'){addField('aw','후드 면적 가로','cm','70');addField('ah','후드 면적 세로','cm','70')}
+ else {addField('diameter','후드 면적 지름','cm','80')}
+}
+function buildInputs(def){
+ inputFields.innerHTML='';
+ def.fields.forEach(f=>addField(...f));
+ if(currentKey()==='general'||currentKey()==='flangedGeneral')addAreaPicker();
+}
+function updateUI(){
+ hoodButtons.forEach(b=>b.classList.toggle('active',b.dataset.type===hoodType));
+ subtypeArea.hidden=hoodType!=='external';
+ subtypeButtons.forEach(b=>b.classList.toggle('active',b.dataset.subtype===externalSubtype));
+ result.classList.remove('show');
+ const def=definitions[currentKey()],supported=!!def;
+ formulaBox.hidden=!supported;inputFields.hidden=!supported;pending.classList.toggle('show',!supported);
+ calculate.disabled=!supported;calculate.style.opacity=supported?'1':'.5';
+ if(supported){formulaBox.innerHTML='적용 공식<strong>'+def.formula+'</strong>'+def.description;buildInputs(def);}
+ else {inputFields.innerHTML='';pending.textContent='캐노피식의 계산 공식과 입력 항목은 아직 등록되지 않았습니다. 공식을 알려주시면 추가하겠습니다. 임의의 공식으로 계산하지 않습니다.'}
+}
+hoodButtons.forEach(b=>b.addEventListener('click',()=>{hoodType=b.dataset.type;updateUI();recalculateIfValid()}));
+subtypeButtons.forEach(b=>b.addEventListener('click',()=>{externalSubtype=b.dataset.subtype;updateUI();recalculateIfValid()}));
+function val(id){return Number(document.getElementById(id).value)}
+function fmt(n){return n.toLocaleString('ko-KR',{minimumFractionDigits:1,maximumFractionDigits:1})}
+function validInputs(ids){return ids.every(id=>{const el=document.getElementById(id);return el&&el.value.trim()!==''&&Number.isFinite(Number(el.value))&&Number(el.value)>=0})}
+calculate.addEventListener('click',recalculateIfValid);
+function recalculateIfValid(){
+ const key=currentKey(),def=definitions[key];
+ if(!def)return;
+ const ids=def.fields.map(f=>f[0]);
+ if(key==='general'||key==='flangedGeneral')ids.push(...(shape==='rect'?['aw','ah']:['diameter']));
+ if(!validInputs(ids)){result.classList.remove('show');return}
+ runCalculation();
+}
+function runCalculation(){
+ // Use the same calculation handler through a custom event so results update while typing.
+ calculate.dispatchEvent(new Event('manual-recalc'));
+}
+calculate.addEventListener('manual-recalc',()=>{
+ const key=currentKey(),def=definitions[key];if(!def)return;
+ const ids=def.fields.map(f=>f[0]);
+ if(key==='general'||key==='flangedGeneral')ids.push(...(shape==='rect'?['aw','ah']:['diameter']));
+ if(!validInputs(ids)){result.classList.remove('show');return}
+ let q,calculation;
+ if(key==='booth'){
+  const vc=val('vc'),w=val('w')/100,h=val('h')/100;
+  q=vc*w*h*60;calculation=`Q = ${fmt(vc)} × (${fmt(val('w'))}/100) × (${fmt(val('h'))}/100) × 60 = ${fmt(q)} m³/min`;
+ }else if(key==='general'||key==='flangedGeneral'){
+  const vc=val('vc'),x=val('x')/100,a=shape==='rect'?(val('aw')/100)*(val('ah')/100):Math.PI*Math.pow((val('diameter')/100)/2,2),factor=key==='general'?1:0.75;
+  q=factor*vc*(10*x*x+a)*60;
+  const areaText=shape==='rect'?`A = (${fmt(val('aw'))}/100) × (${fmt(val('ah'))}/100) = ${fmt(a)} m²`:`A = π × ((${fmt(val('diameter'))}/100) ÷ 2)² = ${fmt(a)} m²`;
+  calculation=`${areaText}<br>Q = ${factor===1?'':factor+' × '}${fmt(vc)} × (10 × ${fmt(x)}² + ${fmt(a)}) × 60 = ${fmt(q)} m³/min`;
+ }else if(key==='slot'||key==='flangedSlot'){
+  const l=val('l')/100,vc=val('vc'),x=val('x')/100,factor=key==='slot'?3.7:2.6;
+  q=factor*l*vc*x*60;
+  calculation=`Q = ${factor} × (${fmt(val('l'))}/100) × ${fmt(vc)} × (${fmt(val('x'))}/100) × 60 = ${fmt(q)} m³/min`;
+ }else if(key==='canopy'){
+  const p=val('p')/100,v=val('v'),d=val('d')/100;
+  q=1.4*p*v*d*60;
+  calculation=`Q = 1.4 × (${fmt(val('p'))}/100) × ${fmt(v)} × (${fmt(val('d'))}/100) × 60 = ${fmt(q)} m³/min`;
+ }
+ document.getElementById('qResult').textContent=fmt(q)+' m³/min';
+ document.getElementById('calculationLine').innerHTML=calculation;
+ result.classList.add('show');
+});
+document.getElementById('reset').addEventListener('click',()=>{updateUI();recalculateIfValid()});
+inputFields.addEventListener('input',recalculateIfValid);
+inputFields.addEventListener('change',recalculateIfValid);
+updateUI();
+recalculateIfValid();
+</script>
+</body>
+</html>
