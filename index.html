@@ -2,13 +2,10 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#173f70">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="manifest" href="manifest.json">
-<link rel="icon" href="icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png">
 <title>국소배기장치 필요환기량 계산기</title>
 <style>
 :root{--navy:#173f70;--blue:#1677e8;--pale:#eef6ff;--line:#cbdcf0;--text:#172b43;--muted:#5c7088}
@@ -68,9 +65,22 @@ input,select{width:100%;min-width:0;border:0;outline:none;padding:11px;backgroun
 <div id="calculationLine" class="calc-line"></div>
 </div>
 </section>
-<section class="card"><h2>3. 단위 및 공식 안내</h2>
+
+<section class="card" id="ductCalculator">
+<h2>3. 원형 덕트 규격 추천</h2>
+<p class="notice">상용 덕트 추천은 후드 필요환기량과 사용자가 입력한 최소 반송속도만을 기준으로 합니다. 압력손실과 송풍기 운전점은 이번 계산에 반영하지 않습니다.</p>
+<div class="field"><label for="minTransportVelocity">최소 반송속도</label><div class="input-wrap"><input id="minTransportVelocity" type="number" min="0.1" step="0.1" value="15"><span class="unit">m/s</span></div></div>
+<div class="result show" id="ductResult" aria-live="polite">
+<div class="result-label">덕트 규격 추천 결과</div>
+<div>기준 필요환기량</div><div class="big" id="ductFlow">계산 대기 중</div>
+<div class="calc-line" id="ductResultLine">먼저 위에서 필요환기량을 계산하세요.</div>
+</div>
+<details open style="margin-top:14px"><summary style="font-weight:700;cursor:pointer;padding:8px 0">상용 원형 덕트 규격표 (추천 규격 강조)</summary><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;margin-top:8px"><thead><tr><th style="text-align:left;padding:10px;border-bottom:1px solid var(--line)">상용 내경 (mm)</th><th style="text-align:left;padding:10px;border-bottom:1px solid var(--line)">선정 결과</th><th style="text-align:left;padding:10px;border-bottom:1px solid var(--line)">필요환기량 기준 속도 (m/s)</th></tr></thead><tbody id="roundDuctTable"></tbody></table></div></details>
+<p class="notice" style="margin-top:12px">추천 규격은 후드 필요환기량과 입력한 최소 반송속도만으로 선정합니다. 압력손실 및 송풍기 운전점은 반영하지 않습니다. 상용 내경 목록은 참고용이며 실제 제작사 규격을 확인하세요.</p>
+</section>
+<section class="card"><h2>4. 단위 및 공식 안내</h2>
 <p class="notice">모든 길이 입력값은 cm이며, 계산 시 m로 자동 변환됩니다. 후드 면적 A는 사각형(가로 × 세로) 또는 원형(지름)으로 계산할 수 있습니다. 최종 필요환기량은 m³/min으로 표시합니다. 일반 외부식 공식의 A는 후드 면적(m²)으로 해석했고, 슬롯 공식의 V는 제어속도 Vc(m/s)로 해석했습니다. 캐노피식 공식 Q=1.4×P×V×D를 적용했습니다. 실제 설계에는 적용 기준과 작업 조건을 확인하세요.</p></section>
-<footer>국소배기장치 필요환기량 계산기 · 단위 설정 업데이트</footer>
+<footer>국소배기장치 필요환기량 및 덕트 규격 추천 계산기</footer>
 </main>
 <script>
 const hoodButtons=[...document.querySelectorAll('.choice')],subtypeButtons=[...document.querySelectorAll('.subtype')];
@@ -157,18 +167,37 @@ calculate.addEventListener('manual-recalc',()=>{
   q=1.4*p*v*d*60;
   calculation=`Q = 1.4 × (${fmt(val('p'))}/100) × ${fmt(v)} × (${fmt(val('d'))}/100) × 60 = ${fmt(q)} m³/min`;
  }
+ latestAirflowM3Min=q;
  document.getElementById('qResult').textContent=fmt(q)+' m³/min';
+ if(typeof calculateDuct==='function') calculateDuct();
  document.getElementById('calculationLine').innerHTML=calculation;
  result.classList.add('show');
 });
 document.getElementById('reset').addEventListener('click',()=>{updateUI();recalculateIfValid()});
 inputFields.addEventListener('input',recalculateIfValid);
 inputFields.addEventListener('change',recalculateIfValid);
+
+let latestAirflowM3Min = null;
+const roundDuctSizes=[80,100,125,150,160,180,200,224,250,280,300,315,350,355,400,450,500,550,560,600,630,650,710,750,800,900,1000,1120,1250,1400,1600];
+function fmtDuct(n){return Number(n).toLocaleString('ko-KR',{minimumFractionDigits:1,maximumFractionDigits:1})}
+function calculateDuct(){
+ const line=document.getElementById('ductResultLine'), flowEl=document.getElementById('ductFlow');
+ const vMin=Number(document.getElementById('minTransportVelocity').value);
+ if(!Number.isFinite(latestAirflowM3Min)||latestAirflowM3Min<=0){flowEl.textContent='계산 대기 중';line.textContent='먼저 위에서 필요환기량을 계산하세요.';document.getElementById('roundDuctTable').innerHTML='';return;}
+ if(!Number.isFinite(vMin)||vMin<=0){flowEl.textContent='입력값 확인';line.textContent='최소 반송속도는 0보다 큰 값으로 입력하세요.';document.getElementById('roundDuctTable').innerHTML='';return;}
+ const qTarget=latestAirflowM3Min, qSec=qTarget/60, idealD=Math.sqrt(4*qSec/(Math.PI*vMin))*1000;
+ const selected=[...roundDuctSizes].reverse().find(mm=>mm<=idealD);
+ const table=document.getElementById('roundDuctTable');
+ table.innerHTML=roundDuctSizes.map(mm=>{const a=Math.PI*Math.pow(mm/1000,2)/4,vel=qSec/a,isSelected=mm===selected;return `<tr style="${isSelected?'background:#dceafe;font-weight:700;':''}"><td style="padding:9px 10px;border-bottom:1px solid #e1e7ef">${mm} mm</td><td style="padding:9px 10px;border-bottom:1px solid #e1e7ef">${isSelected?'✓ 추천':(mm>idealD?'최소속도 미달':'')}</td><td style="padding:9px 10px;border-bottom:1px solid #e1e7ef">${fmtDuct(vel)}</td></tr>`}).join('');
+ flowEl.textContent=fmtDuct(qTarget)+' m³/min';
+ if(!selected){line.innerHTML=`기준 필요환기량: <b>${fmtDuct(qTarget)} m³/min</b><br>사용자 입력 최소 반송속도: <b>${fmtDuct(vMin)} m/s</b><br>계산상 내경: <b>${fmtDuct(idealD)} mm</b><br><span style="color:#a34a00"><b>상용 규격 목록에서 조건을 만족하는 규격을 찾지 못했습니다.</b> 더 작은 규격을 목록에 추가하거나 설계 조건을 확인하세요.</span>`;return;}
+ const D=selected/1000, area=Math.PI*D*D/4, actualV=qSec/area;
+ line.innerHTML=`기준 후드 필요환기량: <b>${fmtDuct(qTarget)} m³/min</b><br>사용자 입력 최소 반송속도: <b>${fmtDuct(vMin)} m/s</b><br>계산상 내경: <b>${fmtDuct(idealD)} mm</b><br>추천 상용 원형 덕트: <b>${selected} mm</b><br>추천 규격에서 예상 반송속도: <b>${fmtDuct(actualV)} m/s</b><br><br><span class="notice">계산식: Q(m³/s)=Q(m³/min)÷60, A=Q/V, D=√(4A/π). 필요환기량을 유지한다고 가정하며 압력손실과 송풍기 성능은 반영하지 않습니다.</span>`;
+}
+document.getElementById('minTransportVelocity').addEventListener('input',calculateDuct);
 updateUI();
 recalculateIfValid();
-</script>
-<script>
-if ("serviceWorker" in navigator) { window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(err => console.log("Service worker registration failed", err))); }
+if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {})); }
 </script>
 </body>
 </html>
