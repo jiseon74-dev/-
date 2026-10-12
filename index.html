@@ -2,7 +2,13 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#173f70">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>국소배기장치 필요환기량 계산기</title>
 <style>
 :root{--navy:#173f70;--blue:#1677e8;--pale:#eef6ff;--line:#cbdcf0;--text:#172b43;--muted:#5c7088}
@@ -160,6 +166,9 @@ inputFields.addEventListener('input',recalculateIfValid);
 inputFields.addEventListener('change',recalculateIfValid);
 updateUI();
 recalculateIfValid();
+</script>
+<script>
+if ("serviceWorker" in navigator) { window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(err => console.log("Service worker registration failed", err))); }
 </script>
 </body>
 </html>
