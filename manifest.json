@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "국소배기장치 필요환기량 계산기",
+  "short_name": "국소배기 계산기",
+  "description": "후드 필요환기량과 최소 반송속도를 이용해 원형 상용 덕트 규격을 추천합니다.",
+  "lang": "ko-KR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#173f70",
+  "background_color": "#f3f7fc",
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
